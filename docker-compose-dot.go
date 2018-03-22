@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"log"
@@ -60,11 +61,16 @@ func main() {
 		project string
 	)
 
-	if len(os.Args) < 3 {
-		log.Fatal("Need input and output file!")
+	if len(os.Args) < 2 {
+		log.Fatal("Need input file!")
 	}
 
-	fout, err := os.Create(os.Args[2])
+	absPath, _ := filepath.Abs(os.Args[1])
+	absName := strings.Split(absPath, ".yml")[0]
+	mdFile := absName + ".md"
+	//pngFile := absName + ".png";
+
+	fout, err := os.Create(mdFile)
 	check(err)
 
 	// It's idiomatic to defer a `Close` immediately
