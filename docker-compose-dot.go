@@ -20,8 +20,10 @@ type config struct {
 }
 
 type network struct {
-	Driver, External string
-	DriverOpts       map[string]string "driver_opts"
+	Driver     string
+	DriverOpts map[string]string "driver_opts"
+	External   map[string]string "external"
+	name       map[string]string "name"
 }
 
 type volume struct {
@@ -44,6 +46,12 @@ func nodify(s string) string {
 	return strings.Replace(s, "-", "_", -1)
 }
 
+func check(e error) {
+	if e != nil {
+		panic(e)
+	}
+}
+
 func main() {
 	var (
 		bytes   []byte
@@ -52,9 +60,16 @@ func main() {
 		project string
 	)
 
-	if len(os.Args) < 2 {
-		log.Fatal("Need input file!")
+	if len(os.Args) < 3 {
+		log.Fatal("Need input and output file!")
 	}
+
+	fout, err := os.Create(os.Args[2])
+	check(err)
+
+	// It's idiomatic to defer a `Close` immediately
+	// after opening a file.
+	defer fout.Close()
 
 	bytes, err = ioutil.ReadFile(os.Args[1])
 	if err != nil {
@@ -84,11 +99,18 @@ func main() {
 				"<TR><TD BGCOLOR='pink'><FONT POINT-SIZE='9'>environment</FONT></TD></TR>" +
 				"</TABLE>>",
 		})
-
 	/** NETWORK NODES **/
 	for name := range data.Networks {
+		/** if external**/
+		var ename = name
+		if data.Networks[name].External != nil {
+			ename = data.Networks[name].External["name"]
+		} else {
+			ename = name
+		}
+
 		graph.AddNode(project, nodify(name), map[string]string{
-			"label":     fmt.Sprintf("\"Network: %s\"", name),
+			"label":     fmt.Sprintf("\"Network: %s\"", ename),
 			"style":     "filled",
 			"shape":     "box",
 			"fillcolor": "palegreen",
@@ -145,5 +167,12 @@ func main() {
 			}
 		}
 	}
-	fmt.Print(graph)
+
+	fmt.Fprintf(fout, "\n\n```viz\n\n")
+	fmt.Fprintf(fout, graph.String())
+	fmt.Fprintf(fout, "```\n\n")
+
+	// Issue a `Sync` to flush writes to stable storage.
+	fout.Sync()
+
 }
