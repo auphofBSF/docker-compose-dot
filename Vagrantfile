@@ -7,7 +7,7 @@
 # you're doing.
 Vagrant.configure(2) do |config|
 
-  config.vm.box = "dduportal/boot2docker"
+  config.vm.box = "AlbanMontaigu/boot2docker"
   config.vm.network :forwarded_port, guest: 9999, host: 9999
   config.vm.provision :docker do |d|
 
