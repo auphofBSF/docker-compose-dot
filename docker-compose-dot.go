@@ -33,14 +33,101 @@ type volume struct {
 }
 
 type service struct {
-	ContainerName                     string "container_name"
-	Image                             string
-	Networks, Ports, Volumes, Command []string
-	VolumesFrom                       []string "volumes_from"
-	DependsOn                         []string "depends_on"
-	CapAdd                            []string "cap_add"
-	Build                             struct{ Context, Dockerfile string }
-	Environment                       map[string]string
+	ContainerName            string "container_name"
+	Image                    string
+	Networks, Ports, Volumes []string
+	Command                  CommandWrapper
+	VolumesFrom              []string "volumes_from"
+	DependsOn                []string "depends_on"
+	CapAdd                   []string "cap_add"
+	Build                    BuildWrapper
+	Environment              map[string]string
+}
+
+// https://docs.docker.com/compose/compose-file/#service-configuration-reference
+// command
+// Override the default command.
+
+// command: bundle exec thin -p 3000
+// The command can also be a list, in a manner similar to dockerfile:
+
+// command: ["bundle", "exec", "thin", "-p", "3000"]
+
+//Command has 2 formats
+type CommandWrapper struct {
+	Command  string
+	Commands []string
+}
+
+func (w *CommandWrapper) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var err error
+	var str string
+	if err = unmarshal(&str); err == nil {
+		w.Command = str
+		return nil
+	}
+
+	var commandArray []string
+	if err = unmarshal(&commandArray); err == nil {
+		w.Commands = commandArray
+		return nil
+	}
+	return nil //TODO: should be an error , something like UNhhandledError
+}
+
+// https://docs.docker.com/compose/compose-file/#service-configuration-reference
+// build
+// Configuration options that are applied at build time.
+//
+// build can be specified either as a string containing a path to the build context:
+// version: '3'
+// services:
+//   webapp:
+//     build: ./dir
+//
+//Or, as an object with the path specified under context and optionally Dockerfile and args:
+// version: '3'
+// services:
+// 	webapp:
+// 	build:
+// 		context: ./dir
+// 		dockerfile: Dockerfile-alternate
+// 		args:
+// 		buildno: 1
+// If you specify image as well as build, then Compose names the built image with the webapp and optional tag specified in image:
+//
+// build: ./dir
+// image: webapp:tag
+// This results in an image named webapp and tagged tag, built from ./dir.
+
+//Command has 2 formats
+type BuildWrapper struct {
+	BuildString string
+	BuildObject map[string]string
+}
+
+func (w *BuildWrapper) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var err error
+	var buildString string
+	if err = unmarshal(&buildString); err == nil {
+		//str := command
+		//*w = CommandWrapper(str)
+		w.BuildString = buildString
+		return nil
+	}
+	// if err != nil {
+	// 	return err
+	// }
+	// return json.Unmarshal([]byte(str), w)
+
+	var buildObject map[string]string
+	if err = unmarshal(&buildObject); err == nil {
+		//str := command
+		//*w = CommandWrapper(commandArray[0])
+		w.BuildObject = buildObject
+		return nil
+	}
+	return nil //should be an error , something like UNhhandledError
 }
 
 func nodify(s string) string {
