@@ -15,6 +15,17 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
+//Graphvix formatting
+//TODO: move to some sort of template.CSS
+const (
+	fontname           string = "Helvetica"
+	colorVolumes              = "orange"
+	colorPorts                = "lightgrey"
+	colorContainerName        = "lightblue"
+	colorEnvironment          = "pink"
+	colorNetworks             = "palegreen"
+)
+
 type config struct {
 	Version  string
 	Networks map[string]network
@@ -144,6 +155,8 @@ func check(e error) {
 	}
 }
 
+//CLI flag configuration
+
 var flagFileOut bool
 
 func init() {
@@ -168,7 +181,17 @@ func init() {
 	flag.BoolVar(&flagHelp, "help", false, "Displays usage Help.")
 }
 
-//TODO: implement --help
+var flagNoLegend bool
+
+func init() {
+	flag.BoolVar(&flagNoLegend, "noLegend", false, "Suppress output of legend.")
+}
+
+var flagOnlyLegend bool
+
+func init() {
+	flag.BoolVar(&flagOnlyLegend, "onlyLegend", false, "Output only the legend.")
+}
 
 func main() {
 	var (
@@ -187,6 +210,10 @@ func main() {
 		flag.Parse()
 		log.Println("Flag --fileOut            :", flagFileOut)
 		log.Println("Flag --outputMarkDown     :", flagOutputMarkDown)
+		log.Println("Flag --quiet              :", flagQuiet)
+		log.Println("Flag --noLegend           :", flagNoLegend)
+		log.Println("Flag --onlyLegend         :", flagOnlyLegend)
+		log.Println("Flag --help               :", flagHelp)
 		log.Println("Remaining Arguments (tail):", flag.Args())
 		cmdlineArguments = flag.Args()
 		if flagHelp {
@@ -218,83 +245,103 @@ func main() {
 	graph = gographviz.NewGraph()
 	graph.SetName(project)
 	graph.SetDir(true)
-
-	// Add legend
-	graph.AddSubGraph(project, "cluster_legend", map[string]string{"label": "Legend"})
-	graph.AddNode("cluster_legend", "legend_service",
-		map[string]string{"shape": "plaintext",
-			"label": "<<TABLE BORDER='0'>" +
-				"<TR><TD BGCOLOR='lightblue'><B>container_name</B></TD></TR>" +
-				"<TR><TD BGCOLOR='lightgrey'><FONT POINT-SIZE='9'>ports ext:int</FONT></TD></TR>" +
-				"<TR><TD BGCOLOR='orange'><FONT POINT-SIZE='9'>volumes host:container</FONT></TD></TR>" +
-				"<TR><TD BGCOLOR='pink'><FONT POINT-SIZE='9'>environment</FONT></TD></TR>" +
-				"</TABLE>>",
-		})
-	/** NETWORK NODES **/
-	for name := range data.Networks {
-		/** if external**/
-		var ename = name
-		if data.Networks[name].External != nil {
-			ename = data.Networks[name].External["name"]
-		} else {
-			ename = name
-		}
-
-		graph.AddNode(project, nodify(name), map[string]string{
-			"label":     fmt.Sprintf("\"Network: %s\"", ename),
-			"style":     "filled",
-			"shape":     "box",
-			"fillcolor": "palegreen",
-		})
+	if !flagNoLegend || flagOnlyLegend {
+		// Add legend
+		graph.AddSubGraph(project, "cluster_legend", map[string]string{"label": "Legend"})
+		graph.AddNode("cluster_legend", "legend_service",
+			map[string]string{"shape": "plaintext",
+				"fontname": fontname,
+				"label": "<<TABLE BORDER='0'>" +
+					"<TR><TD BGCOLOR='" + colorContainerName + "'>container_name</TD></TR>" +
+					"<TR><TD BGCOLOR='" + colorPorts + "'><FONT POINT-SIZE='9'>ports ext:int</FONT></TD></TR>" +
+					"<TR><TD BGCOLOR='" + colorVolumes + "'><FONT POINT-SIZE='9'>volumes host:container</FONT></TD></TR>" +
+					"<TR><TD BGCOLOR='" + colorEnvironment + "'><FONT POINT-SIZE='9'>environment</FONT></TD></TR>" +
+					"</TABLE>>",
+			})
 	}
+	if !flagOnlyLegend {
+		/** NETWORK NODES **/
+		for name := range data.Networks {
+			/** if external**/
+			var ename = name
+			if data.Networks[name].External != nil {
+				ename = data.Networks[name].External["name"]
+			} else {
+				ename = name
+			}
 
-	/** SERVICE NODES **/
-	for name, service := range data.Services {
-		var attrs = map[string]string{"shape": "plaintext", "label": "<<TABLE BORDER='0'>"}
-		attrs["label"] += fmt.Sprintf("<TR><TD BGCOLOR='lightblue'><B>%s</B></TD></TR>", name)
+			graph.AddNode(project, nodify(name), map[string]string{
+				"label":     fmt.Sprintf("\"Network: %s\"", ename),
+				"fontname":  fontname,
+				"style":     "filled",
+				"shape":     "box",
+				"fillcolor": colorNetworks,
+			})
+		}
+		/** SERVICE NODES **/
+		for name, service := range data.Services {
+			var attrs = map[string]string{"shape": "plaintext",
+				"fontname": fontname,
+				"label":    "<<TABLE BORDER='0'>"}
+			attrs["label"] += fmt.Sprintf("<TR><TD BGCOLOR='"+
+				colorContainerName+
+				"'>%s</TD></TR>", name)
 
-		if service.Ports != nil {
-			for _, port := range service.Ports {
-				attrs["label"] += fmt.Sprintf("<TR><TD BGCOLOR='lightgrey'><FONT POINT-SIZE='9'>%s</FONT></TD></TR>", port)
-			}
-		}
-		if service.Volumes != nil {
-			for _, vol := range service.Volumes {
-				attrs["label"] += fmt.Sprintf("<TR><TD BGCOLOR='orange'><FONT POINT-SIZE='9'>%s</FONT></TD></TR>", vol)
-			}
-		}
-		/*		if service.Environment != nil {
-				for k, v := range service.Environment {
-					attrs["label"] += fmt.Sprintf("<TR><TD BGCOLOR='pink'><FONT POINT-SIZE='9'>%s: %s</FONT></TD></TR>",k,v)
+			if service.Ports != nil {
+				for _, port := range service.Ports {
+					attrs["label"] += fmt.Sprintf("<TR><TD BGCOLOR='"+
+						colorPorts+
+						"'><FONT POINT-SIZE='9'>%s</FONT></TD></TR>", port)
 				}
-			}*/
-		attrs["label"] += "</TABLE>>"
-		graph.AddNode(project, nodify(name), attrs)
-	}
-	/** EDGES **/
-	for name, service := range data.Services {
-		// Links to networks
-		if service.Networks != nil {
-			for _, linkTo := range service.Networks {
-				if strings.Contains(linkTo, ":") {
-					linkTo = strings.Split(linkTo, ":")[0]
+			}
+			if service.Volumes != nil {
+				for _, vol := range service.Volumes {
+					attrs["label"] += fmt.Sprintf("<TR><TD BGCOLOR='"+
+						colorVolumes+
+						"'><FONT POINT-SIZE='9'>%s</FONT></TD></TR>", vol)
 				}
-				graph.AddEdge(nodify(name), nodify(linkTo), true,
-					map[string]string{"dir": "none"})
 			}
+			/*		if service.Environment != nil {
+					for k, v := range service.Environment {
+						attrs["label"] += fmt.Sprintf("<TR><TD BGCOLOR="+
+							colorEnvironment+
+							"><FONT POINT-SIZE='9'>%s: %s</FONT></TD></TR>",k,v)
+					}
+				}*/
+			attrs["label"] += "</TABLE>>"
+			graph.AddNode(project, nodify(name), attrs)
 		}
-		// volumes_from
-		if service.VolumesFrom != nil {
-			for _, linkTo := range service.VolumesFrom {
-				graph.AddEdge(nodify(name), nodify(linkTo), true,
-					map[string]string{"style": "dashed", "label": "volumes_from"})
+		/** EDGES **/
+		for name, service := range data.Services {
+			// Links to networks
+			if service.Networks != nil {
+				for _, linkTo := range service.Networks {
+					if strings.Contains(linkTo, ":") {
+						linkTo = strings.Split(linkTo, ":")[0]
+					}
+					graph.AddEdge(nodify(name), nodify(linkTo), true,
+						map[string]string{"dir": "none"})
+					//							,"fontname": fontname
+
+				}
 			}
-		}
-		// depends_on
-		if service.DependsOn != nil {
-			for _, linkTo := range service.DependsOn {
-				graph.AddEdge(nodify(name), nodify(linkTo), true,
-					map[string]string{"style": "dashed", "label": "depends_on"})
+			// volumes_from
+			if service.VolumesFrom != nil {
+				for _, linkTo := range service.VolumesFrom {
+					graph.AddEdge(nodify(name), nodify(linkTo), true,
+						map[string]string{"style": "dashed",
+							"fontname": fontname,
+							"label":    "volumes_from"})
+				}
+			}
+			// depends_on
+			if service.DependsOn != nil {
+				for _, linkTo := range service.DependsOn {
+					graph.AddEdge(nodify(name), nodify(linkTo), true,
+						map[string]string{"style": "dashed",
+							"fontname": fontname,
+							"label":    "depends_on"})
+				}
 			}
 		}
 	}
@@ -317,6 +364,8 @@ func consoleHelp() {
 		-- fileOut       : Send Output to a file. 
 		--outputMarkDown : Produce MarkDown formatted output.
 		--quiet          : Suppress console output.
+		--noLegend       : Suppress display of legend.
+		--onlyLegend     : Display only the legend.
 		--help           : Display this help information.
 
 		and <yaml/yml file> is the docker-composer.yaml file.

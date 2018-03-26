@@ -19,6 +19,8 @@ where \<flags>  are
 		--fileOut        : Send output to a file.
 		--outputMarkDown : Produce MarkDown formatted output.
 		--quiet:         : Suppress console output.
+		--noLegend:      : Suppress Output of legend..
+		--onlyLegend:    : Output only the legend.
 		--help:          : Display this help information.
 
 
