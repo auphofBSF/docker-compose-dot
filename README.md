@@ -12,8 +12,15 @@ go get github.com/digibib/docker-compose-dot
 
 ```
 Usage:
-  docker-compose-dot docker-compose.yml
+  docker-compose-dot <flags> <YAML file ie:docker-compose.yml>
 ```
+where \<flags>  are
+
+		--fileOut        : Send output to a file.
+		--outputMarkDown : Produce MarkDown formatted output.
+		--quiet:         : Suppress console output.
+		--help:          : Display this help information.
+
 
 ## Docker image use
 

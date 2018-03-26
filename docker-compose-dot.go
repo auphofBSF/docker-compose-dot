@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"flag"
+
 	"log"
 
 	"github.com/awalterschulze/gographviz"
@@ -142,31 +144,65 @@ func check(e error) {
 	}
 }
 
+var flagFileOut bool
+
+func init() {
+	flag.BoolVar(&flagFileOut, "fileOut", false, "Send Output to a file.")
+}
+
+var flagOutputMarkDown bool
+
+func init() {
+	flag.BoolVar(&flagOutputMarkDown, "outputMarkDown", false, "Produce MarkDown formatted output.")
+}
+
+var flagQuiet bool
+
+func init() {
+	flag.BoolVar(&flagQuiet, "quiet", false, "Suppress console output.")
+}
+
+var flagHelp bool
+
+func init() {
+	flag.BoolVar(&flagHelp, "help", false, "Displays usage Help.")
+}
+
+//TODO: implement --help
+
 func main() {
 	var (
-		bytes   []byte
-		err     error
-		graph   *gographviz.Graph
-		project string
+		bytes            []byte
+		err              error
+		graph            *gographviz.Graph
+		project          string
+		cmdlineArguments []string
 	)
 
 	if len(os.Args) < 2 {
-		log.Fatal("Need input file!")
+		log.Fatal("Need at least an input file! USAGE --help")
 	}
 
-	absPath, _ := filepath.Abs(os.Args[1])
-	absName := strings.Split(absPath, ".yml")[0]
-	mdFile := absName + ".md"
-	//pngFile := absName + ".png";
+	if len(os.Args) >= 2 {
+		flag.Parse()
+		log.Println("Flag --fileOut            :", flagFileOut)
+		log.Println("Flag --outputMarkDown     :", flagOutputMarkDown)
+		log.Println("Remaining Arguments (tail):", flag.Args())
+		cmdlineArguments = flag.Args()
+		if flagHelp {
+			consoleHelp()
+			return
+		}
+		//log.Fatal("Need at leaset input file!")
+	} else {
+		cmdlineArguments = os.Args[1:]
+	}
 
-	fout, err := os.Create(mdFile)
-	check(err)
+	composerFileFullPath, _ := filepath.Abs(cmdlineArguments[0])
+	composerFileExtension := filepath.Ext(composerFileFullPath)
+	outputFileFullPathBase := strings.Split(composerFileFullPath, composerFileExtension)[0]
 
-	// It's idiomatic to defer a `Close` immediately
-	// after opening a file.
-	defer fout.Close()
-
-	bytes, err = ioutil.ReadFile(os.Args[1])
+	bytes, err = ioutil.ReadFile(cmdlineArguments[0])
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -263,9 +299,61 @@ func main() {
 		}
 	}
 
-	fmt.Fprintf(fout, "\n\n```viz\n\n")
-	fmt.Fprintf(fout, graph.String())
-	fmt.Fprintf(fout, "```\n\n")
+	if flagFileOut && flagOutputMarkDown {
+		fileOutputMarkdown(outputFileFullPathBase, graph.String())
+	}
+	if !flagQuiet && flagOutputMarkDown {
+		consoleOutputMarkdown(graph.String())
+	} else if !flagQuiet {
+		consoleOutputStandardGraph(graph.String())
+	}
+}
+
+//consoleHelp responds to cli --help flag
+func consoleHelp() {
+	const helpmsg = `docker-compose-dot: Generates graph representation of the docker-compose instance
+	Command Line <flags> <yaml/yml file> 
+		Where <flags> are
+		-- fileOut       : Send Output to a file. 
+		--outputMarkDown : Produce MarkDown formatted output.
+		--quiet          : Suppress console output.
+		--help           : Display this help information.
+
+		and <yaml/yml file> is the docker-composer.yaml file.
+	`
+	log.Print(helpmsg)
+}
+func consoleOutputStandardGraph(graphString string) {
+	// Produce Markdown output with embedded graph
+	// graph.String()
+	fmt.Print(graphString)
+}
+func consoleOutputMarkdown(graphString string) {
+	// Produce Markdown output with embedded graph
+	// graph.String()
+	fmt.Print("\n\n```viz\n\n")
+	fmt.Print(graphString)
+	fmt.Print("```\n\n")
+}
+
+func fileOutputMarkdown(outputFileFullPathBase string, graphString string) {
+	// Produce Markdown output with embedded graph
+	// outputFileFullPathBase
+	// graph.String()
+
+	outputMDfileFullPath := outputFileFullPathBase + ".md"
+	//pngFile := absName + ".png";
+
+	fout, err := os.Create(outputMDfileFullPath)
+	check(err)
+
+	// It's idiomatic to defer a `Close` immediately
+	// after opening a file.
+	defer fout.Close()
+
+	fmt.Fprintf(fout, "\n```viz\n")
+	fmt.Fprintf(fout, graphString)
+	fmt.Fprintf(fout, "```\n")
 
 	// Issue a `Sync` to flush writes to stable storage.
 	fout.Sync()
