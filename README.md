@@ -12,9 +12,9 @@ go get github.com/digibib/docker-compose-dot
 
 ```
 Usage:
-  docker-compose-dot <flags> <YAML file ie:docker-compose.yml>
+  docker-compose-dot [FLAGS] <YAML file ie:docker-compose.yml>
 ```
-where \<flags>  are
+where [FLAGS]  are
 
 		--fileOut        : Send output to a file.
 		--outputMarkDown : Produce MarkDown formatted output.
@@ -25,7 +25,7 @@ where \<flags>  are
 
 
 ## Docker image use
-
+###Original "digibib/docker-compose-dot"
 ```
 export TAG=21af6b4fd714903cebd3d4658ad35da4d0db0051
 ```
@@ -37,11 +37,43 @@ docker pull digibib/docker-compose-dot:$TAG
 converting a docker-compose.yml in the current dir:
 
 ```
-docker run --rm -v $(pwd):/tmp digibib/docker-compose-dot:$(TAG) ./app /tmp/docker-compose.yml 2> /dev/null 1> docker-compose.dot
+docker run --rm -v $(pwd):/tmp digibib/docker-compose-dot:$(TAG) ./app [flags] /tmp/docker-compose.yml 2> /dev/null 1> docker-compose.dot
 ```
+### Building the most current version or a customized version
+
+> _Whilst a Makefile exists this will not build on a windows machine. The Makefile has not been tested with this authors contributions_
+
+**requirements** 
+	- [vagrant](https://www.vagrantup.com/downloads.html) on a windows or linux machine
+	- a git repostitory to clone from
+
+
+		git clone {FROM a GIT REPOSITORY A docker-compose-dot COMMIT}
+**to build**
+
+		vagrant up
+
+**to retrieve the built docker image**
+
+		vagrant ssh
+		docker save -o /vagrant/build/docker-compose-dot.dockerImage digibib/docker-compose-dot
+
+on the targert machine remove prior docker images of **docker-compose-dot**
+> ie.  `docker rmi ` image 
+
+on the host machine copy the `./build/docker-compose-dot.dockerImage` file to the target machine and `docker load -i docker-compose-dot.dockerImage`
+
+to rebuild the docker image on build host machine whilst vagrant virtual machine instance is still up
+
+		vagrant ssh -c /vagrant/rebuildInVagrant.sh
+
+on completion when required tear down the vagrant build instance
+
+		vagrant destroy
+
 
 You will need the Graphviz package to convert dot to image formats.
-
+by setting FLAGS markdown formatted output can be viewed with [Markdown Preview Enhanced](https://shd101wyy.github.io/markdown-preview-enhanced/#/)
 #### MIT License
 
 Copyright © 2016 Oslo Public Library <digibib@gmail.com>
