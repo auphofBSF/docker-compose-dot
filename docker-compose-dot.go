@@ -22,24 +22,24 @@ type config struct {
 
 type network struct {
 	Driver     string
-	DriverOpts map[string]string "driver_opts"
-	External   map[string]string "external"
-	name       map[string]string "name"
+	DriverOpts map[string]string `yaml:"driver_opts,omitempty"`
+	External   map[string]string `yaml:"external,omitempty"`
+	name       map[string]string `yaml:"name,omitempty"`
 }
 
 type volume struct {
 	Driver, External string
-	DriverOpts       map[string]string "driver_opts"
+	DriverOpts       map[string]string `yaml:"driver_opts,omitempty"`
 }
 
 type service struct {
-	ContainerName            string "container_name"
+	ContainerName            string `yaml:"container_name,omitempty"`
 	Image                    string
 	Networks, Ports, Volumes []string
 	Command                  CommandWrapper
-	VolumesFrom              []string "volumes_from"
-	DependsOn                []string "depends_on"
-	CapAdd                   []string "cap_add"
+	VolumesFrom              []string `yaml:"volumes_from,omitempty"`
+	DependsOn                []string `yaml:"depends_on,omitempty"`
+	CapAdd                   []string `yaml:"cap_add,omitempty"`
 	Build                    BuildWrapper
 	Environment              map[string]string
 }
@@ -53,12 +53,13 @@ type service struct {
 
 // command: ["bundle", "exec", "thin", "-p", "3000"]
 
-//Command has 2 formats
+//CommandWrapper handles YAML "command" which has 2 formats
 type CommandWrapper struct {
 	Command  string
 	Commands []string
 }
 
+//UnmarshalYAML handles the dynamic parsing of the YAML options
 func (w *CommandWrapper) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var err error
 	var str string
@@ -100,12 +101,13 @@ func (w *CommandWrapper) UnmarshalYAML(unmarshal func(interface{}) error) error 
 // image: webapp:tag
 // This results in an image named webapp and tagged tag, built from ./dir.
 
-//Command has 2 formats
+//BuildWrapper handls YAML build which has 2 formats
 type BuildWrapper struct {
 	BuildString string
 	BuildObject map[string]string
 }
 
+//UnmarshalYAML handles the dynamic parsing of the YAML options
 func (w *BuildWrapper) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var err error
 	var buildString string
